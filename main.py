@@ -2,98 +2,99 @@ import cv2
 import time
 import mediapipe as mp
 
+from camera import Camera
 from pose_engine import PoseEngine
-from correct_engine import PoseCorrectionEngine
-
-
-class Camera:
-    def __init__(self, index=1):
-        self.cap = cv2.VideoCapture(index)
-
-        if not self.cap.isOpened():
-            raise Exception("Camera could not be opened")
-
-    def read(self):
-        ret, frame = self.cap.read()
-
-        if not ret:
-            raise Exception("Frame capture failed")
-
-        return frame
-
-    def release(self):
-        self.cap.release()
+from video_controller import ReferenceVideo
+from reference_analyzer import ReferenceAnalyzer
+from workout_controller import WorkoutController
+from ui_renderer import draw_alert, draw_rep_counter, draw_start_overlay
 
 
 def main():
-    #create objects
-    camera = Camera(1)
-    pose_detector = PoseEngine("pose_landmarker_heavy.task")
-    pose_corrector = PoseCorrectionEngine()
 
-    prev_time = time.time()
+    camera = Camera(0)
+
+    user_pose_detector = PoseEngine("pose_landmarker_heavy.task")
+    reference_pose_detector = PoseEngine("pose_landmarker_heavy.task")
+
+    reference_video = ReferenceVideo("videos/reference_exercise_1.mp4")
+
+    reference_analyzer = ReferenceAnalyzer(reference_pose_detector)
+
+    controller = WorkoutController()
+
+    start_time = time.time()
 
     while True:
 
         frame = camera.read()
+
         height, width, _ = frame.shape
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        #convert into mp image
+
+        # ---------- START COUNTDOWN ----------
+        elapsed = time.time() - start_time
+
+        if elapsed < 3:
+
+            seconds = int(3 - elapsed) + 1
+
+            draw_start_overlay(frame, seconds)
+
+            cv2.imshow("AI Pose Trainer", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+
+            continue
+
+        # ---------- USER DETECTION ----------
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
         mp_image = mp.Image(
             image_format=mp.ImageFormat.SRGB,
-            data=rgb_frame
+            data=rgb
         )
 
-        timestamp = int(time.time() * 1000) #for live streame
-        pose_detector.detect_async(mp_image, timestamp)
-        frame = pose_detector.draw_skeleton(frame)#draw skeleton of the person
-        message = "No pose detected"
+        timestamp = int(time.time() * 1000)
 
-        if pose_detector.latest_result and pose_detector.latest_result.pose_landmarks:
+        user_pose_detector.detect_async(mp_image, timestamp)
 
-            landmarks = pose_detector.latest_result.pose_landmarks[0]
+        frame = user_pose_detector.draw_skeleton(frame)
 
-            # print coordinates 
-            for i, lm in enumerate(landmarks):
-                print(f"Landmark {i}: ({lm.x:.3f}, {lm.y:.3f})")
+        user_landmarks = None
 
-            message = pose_corrector.evaluate_pose(
-                landmarks,
-                width,
-                height
-            )
+        if user_pose_detector.latest_result and user_pose_detector.latest_result.pose_landmarks:
 
-        color = (0, 255, 0) if message == "Correct Pose" else (0, 0, 255)
+            user_landmarks = user_pose_detector.latest_result.pose_landmarks[0]
 
-        cv2.putText(
-            frame,message,
-            (40, 70),cv2.FONT_HERSHEY_SIMPLEX,
-            1,color,2
+        # ---------- REFERENCE VIDEO ----------
+        ref_frame = reference_video.read()
+
+        ref_frame = cv2.resize(ref_frame, (width, height))
+
+        ref_landmarks = reference_analyzer.extract(ref_frame)
+
+        # ---------- EVALUATE ----------
+        correct, message = controller.evaluate(
+            user_landmarks,
+            ref_landmarks,
+            width,
+            height
         )
 
-        cv2.putText(
-            frame,
-            f"Reps: {pose_corrector.reps}",
-            (40,120),cv2.FONT_HERSHEY_SIMPLEX,
-            1,(255,255,0),2
-        )
+        if correct:
+            reference_video.resume()
+        else:
+            reference_video.pause()
 
-        current_time = time.time()
-        dt = current_time - prev_time
-        fps = 1 / dt if dt > 0 else 0
-        prev_time = current_time
-        #show fps
-        cv2.putText(
-            frame,
-            f"FPS: {int(fps)}",
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0, 255, 255),
-            2
-        )
+        # ---------- UI ----------
+        draw_alert(ref_frame, message)
 
-        cv2.imshow("Pose Detection", frame)
+        draw_rep_counter(ref_frame, controller.rep_count)
+
+        combined = cv2.hconcat([frame, ref_frame])
+
+        cv2.imshow("AI Pose Trainer", combined)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
