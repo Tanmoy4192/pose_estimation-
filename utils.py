@@ -2,15 +2,12 @@ import math
 
 
 def distance(p1,p2):
-
     return math.sqrt(
         (p1[0]-p2[0])**2 +
         (p1[1]-p2[1])**2
     )
 
-
 def calculate_angle(a,b,c):
-
     BA = (a[0]-b[0],a[1]-b[1])
     BC = (c[0]-b[0],c[1]-b[1])
 

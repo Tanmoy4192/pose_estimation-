@@ -1,30 +1,37 @@
 import numpy as np
 
+# joints that actually matter for this exercise
+KEYPOINTS = [
+    11, 12,   # shoulders
+    13, 14,   # elbows
+    15, 16    # wrists
+]
+
 
 def normalize_landmarks(landmarks):
-
     pts = []
 
-    for lm in landmarks:
+    for idx in KEYPOINTS:
+        lm = landmarks[idx]
         pts.append([lm.x, lm.y])
 
     pts = np.array(pts)
 
-    center = pts[11]   # left shoulder
+    # center at shoulder midpoint
+    center = (pts[0] + pts[1]) / 2
     pts = pts - center
 
-    scale = np.linalg.norm(pts[12] - pts[11])  # shoulder width
+    # scale by shoulder width
+    shoulder_width = np.linalg.norm(pts[1] - pts[0])
 
-    if scale == 0:
-        scale = 1
+    if shoulder_width == 0:
+        shoulder_width = 1
 
-    pts = pts / scale
-
+    pts = pts / shoulder_width
     return pts.flatten()
 
 
 def pose_similarity(user_lm, ref_lm):
-
     u = normalize_landmarks(user_lm)
     r = normalize_landmarks(ref_lm)
 
@@ -33,7 +40,5 @@ def pose_similarity(user_lm, ref_lm):
 
     if mag == 0:
         return 0
-
     similarity = dot / mag
-
     return similarity

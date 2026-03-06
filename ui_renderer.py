@@ -2,15 +2,14 @@ import cv2
 
 
 def draw_alert(frame, text):
-
     overlay = frame.copy()
 
     h, w, _ = frame.shape
 
     cv2.rectangle(
         overlay,
-        (30, h - 120),
-        (w - 30, h - 40),
+        (30,h - 120),
+        (w - 30,h - 40),
         (0, 0, 0),
         -1
     )
@@ -20,16 +19,15 @@ def draw_alert(frame, text):
     cv2.putText(
         frame,
         text,
-        (60, h - 70),
+        (60,h - 70),
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
-        (255, 255, 255),
+        (255,255,255),
         2
     )
 
 
 def draw_rep_counter(frame, reps):
-
     cv2.putText(
         frame,
         f"Reps: {reps}",
@@ -42,7 +40,6 @@ def draw_rep_counter(frame, reps):
 
 
 def draw_start_overlay(frame, seconds):
-
     overlay = frame.copy()
 
     h, w, _ = frame.shape
@@ -59,12 +56,12 @@ def draw_start_overlay(frame, seconds):
 
     cv2.putText(
         frame,
-        "Let's Begin",
-        (w // 2 - 150, h // 2 - 20),
+        "Starting In",
+        (w // 2 - 150, h // 2 - 40),
         cv2.FONT_HERSHEY_SIMPLEX,
-        2,
+        1.5,
         (255, 255, 255),
-        4
+        3
     )
 
     cv2.putText(
@@ -72,7 +69,57 @@ def draw_start_overlay(frame, seconds):
         str(seconds),
         (w // 2 - 20, h // 2 + 60),
         cv2.FONT_HERSHEY_SIMPLEX,
-        2,
+        3,
         (0, 255, 255),
-        4
+        5
     )
+
+
+def draw_exercise_intro(frame):
+    overlay = frame.copy()
+
+    h, w, _ = frame.shape
+
+    cv2.rectangle(
+        overlay,
+        (0, 0),
+        (w, h),
+        (0, 0, 0),
+        -1
+    )
+
+    cv2.addWeighted(overlay, 0.65, frame, 0.35, 0, frame)
+
+    lines = [
+        "Exercise 1",
+        "Hands Overhead Stretch",
+        "",
+        "Stand straight",
+        "Keep feet slightly apart",
+        "Raise arms above head",
+        "Join your palms"
+    ]
+
+    y_start = h // 2 - 120
+    gap = 50
+
+    for i, text in enumerate(lines):
+        text_size = cv2.getTextSize(
+            text,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            2
+        )[0]
+
+        x = (w - text_size[0]) // 2
+        y = y_start + i * gap
+
+        cv2.putText(
+            frame,
+            text,
+            (x,y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (255, 255,255),
+            2
+        )
